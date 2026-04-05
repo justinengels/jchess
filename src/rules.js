@@ -312,17 +312,45 @@ class Board {
 
   move(from, to) {
     const piece = this.board[from];
-    if (!piece) return;
+    const captured = this.board[to];
+    const prevLastMove = this.lastMove;
+
     if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !this.board[to]) {
-      this.board[to[0] + from[1]] = null; // En Passant
+      // En Passant
+      this.board[to[0] + from[1]] = null;
     }
     if (piece.toUpperCase() === 'K' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
+      // Castling
       if (to[0] === 'g') { this.board['f' + from[1]] = this.board['h' + from[1]]; this.board['h' + from[1]] = null; }
       else if (to[0] === 'c') { this.board['d' + from[1]] = this.board['a' + from[1]]; this.board['a' + from[1]] = null; }
     }
     this.board[to] = piece;
     this.board[from] = null;
     this.lastMove = { from, to };
+    this.turn = this.turn === 'white' ? 'black' : 'white';
+
+    return { captured, prevLastMove };
+  }
+
+  unmakeMove(from, to, captured, prevLastMove) {
+    const piece = this.board[to];
+    
+    // Undo move
+    this.board[from] = piece;
+    this.board[to] = captured;
+
+    // Undo En Passant
+    if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !captured) {
+      this.board[to[0] + from[1]] = (this.turn === 'white' ? 'p' : 'P');
+    }
+
+    // Undo Castling
+    if (piece.toUpperCase() === 'K' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
+      if (to[0] === 'g') { this.board['h' + from[1]] = this.board['f' + from[1]]; this.board['f' + from[1]] = null; }
+      else if (to[0] === 'c') { this.board['a' + from[1]] = this.board['d' + from[1]]; this.board['d' + from[1]] = null; }
+    }
+
+    this.lastMove = prevLastMove;
     this.turn = this.turn === 'white' ? 'black' : 'white';
   }
 

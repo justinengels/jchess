@@ -2,14 +2,21 @@ import Board from './rules.js';
 import { Evaluator } from './eval.js';
 
 class Search {
-  static minimax(board, depth, alpha, beta, isMaximizingPlayer, stats, startTime, timeLimit) {
-    if (performance.now() - startTime > timeLimit) throw new Error('TimeoutException');
+  static minimax(board, depth, alpha, beta, isMaximizingPlayer, stats, startTime, timeLimit, currentDepth = 0) {
+    if (this.isAborted) return 0;
+    stats.nodesEvaluated++;
+    if (stats.nodesEvaluated % 1000 === 0) {
+      console.log(`Depth: ${currentDepth}, Nodes: ${stats.nodesEvaluated}, Time: ${Date.now() - startTime}ms`);
+    }
+    if (Date.now() - startTime >= timeLimit) {
+        this.isAborted = true;
+        console.log("Search aborted due to time limit");
+    }
+    if (this.isAborted) return 0;
     
     if (depth === 0) {
-      stats.nodesEvaluated++;
       return Evaluator.evaluate(board);
     }
-    stats.nodesEvaluated++;
 
     const moves = this.generateMoves(board, isMaximizingPlayer);
     if (moves.length === 0) return Evaluator.evaluate(board);
@@ -17,8 +24,10 @@ class Search {
     if (isMaximizingPlayer) {
       let maxEval = -Infinity;
       for (const move of moves) {
-        const boardCopy = this.makeMove(board, move);
-        const evaluation = this.minimax(boardCopy, depth - 1, alpha, beta, false, stats, startTime, timeLimit);
+        if (this.isAborted) break;
+        const moveInfo = this.makeMove(board, move);
+        const evaluation = this.minimax(board, depth - 1, alpha, beta, false, stats, startTime, timeLimit, currentDepth + 1);
+        this.unmakeMove(board, move, moveInfo);
         maxEval = Math.max(maxEval, evaluation);
         alpha = Math.max(alpha, evaluation);
         if (beta <= alpha) break;
@@ -27,8 +36,10 @@ class Search {
     } else {
       let minEval = Infinity;
       for (const move of moves) {
-        const boardCopy = this.makeMove(board, move);
-        const evaluation = this.minimax(boardCopy, depth - 1, alpha, beta, true, stats, startTime, timeLimit);
+        if (this.isAborted) break;
+        const moveInfo = this.makeMove(board, move);
+        const evaluation = this.minimax(board, depth - 1, alpha, beta, true, stats, startTime, timeLimit, currentDepth + 1);
+        this.unmakeMove(board, move, moveInfo);
         minEval = Math.min(minEval, evaluation);
         beta = Math.min(beta, evaluation);
         if (beta <= alpha) break;
@@ -59,29 +70,32 @@ class Search {
   }
 
   static makeMove(board, move) {
-    const newBoard = new Board();
-    newBoard.board = { ...board.board };
-    newBoard.turn = board.turn;
-    newBoard.lastMove = board.lastMove;
-    newBoard.move(move.from, move.to);
-    return newBoard;
+    return board.move(move.from, move.to);
+  }
+
+  static unmakeMove(board, move, moveInfo) {
+    board.unmakeMove(move.from, move.to, moveInfo.captured, moveInfo.prevLastMove);
   }
 
   static getBestMove(board, maxDepth, timeLimit) {
     const isMaximizingPlayer = board.turn === 'white';
-    const startTime = performance.now();
+    const startTime = Date.now();
+    this.isAborted = false;
     let bestMove = null;
     let totalNodes = 0;
-    let depth = 1;
 
-    while (depth <= maxDepth && performance.now() - startTime < timeLimit) {
+    for (let d = 1; d <= maxDepth; d++) {
       const stats = { nodesEvaluated: 0 };
-      const currentBestMove = this.iterativeDeepening(board, depth, isMaximizingPlayer, startTime, timeLimit, stats);
+      const currentBestMove = this.iterativeDeepening(board, d, isMaximizingPlayer, startTime, timeLimit, stats);
       totalNodes += stats.nodesEvaluated;
+      
+      if (this.isAborted) break;
+      
       if (currentBestMove) {
         bestMove = currentBestMove;
+      } else {
+        break;
       }
-      depth++;
     }
     return { move: bestMove, nodesEvaluated: totalNodes };
   }
@@ -92,15 +106,13 @@ class Search {
     let bestValue = isMaximizingPlayer ? -Infinity : Infinity;
 
     for (const move of moves) {
-      const boardCopy = this.makeMove(board, move);
-      let boardValue;
-      try {
-        boardValue = this.minimax(boardCopy, depth - 1, -Infinity, Infinity, !isMaximizingPlayer, stats, startTime, timeLimit);
-      } catch (e) {
-        if (e.message === 'TimeoutException') return null;
-        throw e;
-      }
+      if (this.isAborted) break;
+      const moveInfo = this.makeMove(board, move);
+      const boardValue = this.minimax(board, depth - 1, -Infinity, Infinity, !isMaximizingPlayer, stats, startTime, timeLimit);
+      this.unmakeMove(board, move, moveInfo);
       
+      if (this.isAborted) break;
+
       if (isMaximizingPlayer) {
         if (boardValue > bestValue) {
           bestValue = boardValue;
@@ -117,4 +129,4 @@ class Search {
   }
 }
 
-export { Search };
+export default Search;

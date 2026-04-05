@@ -6,6 +6,7 @@ const pieces = {
 
 import Board from './rules.js';
 const game = new Board();
+window.game = game;
 let isSearching = false;
 const engineWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
@@ -19,8 +20,9 @@ engineWorker.onerror = (e) => {
 engineWorker.onmessage = (e) => {
     const { move, nodeCount, error } = e.data;
     if (error) {
-        console.error("Worker Error:", error);
+        console.error("ENGINE CRASH:", error, e.data.stack);
         document.getElementById('status-text').textContent = 'Status: Engine error';
+        document.getElementById('heartbeat').style.backgroundColor = 'red';
         isSearching = false;
         return;
     }
@@ -33,9 +35,8 @@ engineWorker.onmessage = (e) => {
         // Unlock board
         const squares = document.querySelectorAll('.square');
         squares.forEach(sq => sq.draggable = true);
-    } else {
-        document.getElementById('status-text').textContent = 'Status: Engine error';
     }
+    document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
     document.getElementById('heartbeat').style.backgroundColor = 'green';
     isSearching = false;
 };

@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { Board } = require('../src/rules');
+const Board = require('../src/rules.js').default || require('../src/rules.js');
 
 test.describe('Piece Movement Edge Cases', () => {
   test('Absolute Pins: A piece cannot move if it exposes its own King to check', async () => {

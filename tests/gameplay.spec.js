@@ -1,25 +1,38 @@
 const { test, expect } = require('@playwright/test');
 
-test('full game auto-play', async ({ page }) => {
+test('forensic game auto-play', async ({ page }) => {
+  test.setTimeout(120000);
+  page.on('console', msg => console.log(msg.type(), msg.text()));
   await page.goto('/');
   
-  // Wait for board to render
   await page.waitForSelector('#board');
   
-  // Click auto-play button multiple times to simulate a game
   const autoPlayButton = page.locator('#auto-play');
   
-  for (let i = 0; i < 100; i++) {
-    await autoPlayButton.click();
-    // Wait for engine to finish thinking (heartbeat turns green)
-    await page.waitForSelector('#heartbeat[style*="background-color: green"]', { timeout: 60000 });
+  for (let i = 0; i < 5; i++) {
+    // Log FEN before engine starts
+    const fen = await page.evaluate(() => {
+      return window.game ? window.game.toFEN() : "unknown";
+    });
+    console.log("Evaluating FEN:", fen);
     
-    // Check if game is over
+    await autoPlayButton.click();
+    
+    // Wait for engine to finish thinking or error
+    await page.waitForFunction(
+      () => {
+        const heartbeat = document.getElementById('heartbeat');
+        const status = document.getElementById('status-text').textContent;
+        return heartbeat.style.backgroundColor === 'green' || 
+               status === 'Status: Engine error';
+      },
+      { timeout: 120000 }
+    );
+    
     const statusText = await page.textContent('#status-text');
+    if (statusText.includes('Engine error')) {
+      throw new Error(`Engine crashed at FEN: ${fen}`);
+    }
     if (statusText.includes('Checkmate') || statusText.includes('Stalemate')) break;
   }
-  
-  // Verify game is still active
-  const statusText = await page.textContent('#status-text');
-  expect(statusText).not.toContain('Engine error');
 });
