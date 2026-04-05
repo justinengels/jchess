@@ -26,12 +26,12 @@ class Board {
     return this.board[square] || null;
   }
 
-  isValidMove(from, to, ignoreCheck = false) {
+  isValidMove(from, to, ignoreCheck = false, ignorePins = false) {
     const piece = this.board[from];
     if (!piece) return false;
 
     const isWhite = piece === piece.toUpperCase();
-    if ((isWhite && this.turn !== 'white') || (!isWhite && this.turn !== 'black')) {
+    if (!ignorePins && ((isWhite && this.turn !== 'white') || (!isWhite && this.turn !== 'black'))) {
       return false;
     }
 
@@ -98,6 +98,34 @@ class Board {
         const rookSquare = rookFile + fromRank;
         const rook = this.board[rookSquare];
         if (rook && rook.toUpperCase() === 'R') {
+          // Check if in check
+          if (this.isCheck(isWhite ? 'white' : 'black')) return false;
+          
+          // Check if through check
+          const midFile = toFile > fromFile ? 'f' : 'd';
+          const midSquare = midFile + fromRank;
+          
+          const originalBoard = { ...this.board };
+          this.board[midSquare] = piece; this.board[from] = null;
+          const attackedMid = this.isCheck(isWhite ? 'white' : 'black');
+          this.board = originalBoard;
+          if (attackedMid) return false;
+
+          // Check if into check
+          const originalBoard2 = { ...this.board };
+          this.board[to] = piece; this.board[from] = null;
+          const attackedTo = this.isCheck(isWhite ? 'white' : 'black');
+          this.board = originalBoard2;
+          if (attackedTo) return false;
+
+          // Check if path is clear
+          const step = toFile > fromFile ? 1 : -1;
+          let currentFile = fromFile + step;
+          while (currentFile !== (toFile > fromFile ? 104 : 97)) {
+            if (this.board[String.fromCharCode(currentFile) + fromRank]) return false;
+            currentFile += step;
+          }
+
           return true;
         }
       }
@@ -115,28 +143,42 @@ class Board {
       return false;
     }
 
-    if (piece.toUpperCase() === 'P') {
-      const direction = isWhite ? 1 : -1;
-      const startRank = isWhite ? 2 : 7;
-      if (fileDiff === 0 && (toRank - fromRank) === direction && !this.board[to]) return true;
-      if (fileDiff === 0 && (toRank - fromRank) === 2 * direction && fromRank === startRank && !this.board[to] && !this.board[String.fromCharCode(fromFile) + (fromRank + direction)]) return true;
-      if (fileDiff === 1 && (toRank - fromRank) === direction && this.board[to] && (isWhite ? this.board[to] === this.board[to].toLowerCase() : this.board[to] === this.board[to].toUpperCase())) return true;
-
-      // En Passant
-      if (fileDiff === 1 && (toRank - fromRank) === direction && this.lastMove && this.lastMove.to === (to[0] + from[1]) && this.board[to[0] + from[1]] && this.board[to[0] + from[1]].toUpperCase() === 'P' && Math.abs(parseInt(this.lastMove.from[1]) - parseInt(this.lastMove.to[1])) === 2) {
-        return true;
+    // Absolute Pin Check
+    if (!ignoreCheck && !ignorePins) {
+      const originalBoard = { ...this.board };
+      // Simulate move
+      this.board[to] = piece; this.board[from] = null;
+      // If en passant, remove the captured pawn
+      if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !this.board[to]) {
+        this.board[to[0] + from[1]] = null;
+      }
+      
+      // Check if king is attacked by the opponent
+      const attacked = this.isCheck(isWhite ? 'white' : 'black');
+      
+      this.board = originalBoard;
+      if (attacked) {
+        return false;
       }
     }
 
+    if (piece.toUpperCase() === 'P') {
+      const direction = isWhite ? 1 : -1;
+      const startRank = isWhite ? 2 : 7;
+      let canMove = false;
+      if (fileDiff === 0 && (toRank - fromRank) === direction && !this.board[to]) canMove = true;
+      else if (fileDiff === 0 && (toRank - fromRank) === 2 * direction && fromRank === startRank && !this.board[to] && !this.board[String.fromCharCode(fromFile) + (fromRank + direction)]) canMove = true;
+      else if (fileDiff === 1 && (toRank - fromRank) === direction && this.board[to] && (isWhite ? this.board[to] === this.board[to].toLowerCase() : this.board[to] === this.board[to].toUpperCase())) canMove = true;
+      else if (fileDiff === 1 && (toRank - fromRank) === direction && this.lastMove && this.lastMove.to === (to[0] + from[1]) && this.board[to[0] + from[1]] && this.board[to[0] + from[1]].toUpperCase() === 'P' && Math.abs(parseInt(this.lastMove.from[1]) - parseInt(this.lastMove.to[1])) === 2) canMove = true;
+
+      return canMove;
+    }
+
+    // General check for all other pieces
     return false;
   }
 
-  isCheck(color) {
-    const kingSquare = Object.keys(this.board).find(
-      (sq) => this.board[sq] === (color === 'white' ? 'K' : 'k')
-    );
-    if (!kingSquare) return false;
-
+  isAttacked(square, color) {
     const opponentPieces = Object.keys(this.board).filter((sq) => {
       const piece = this.board[sq];
       return piece && (color === 'white' ? piece === piece.toLowerCase() : piece === piece.toUpperCase());
@@ -146,11 +188,26 @@ class Board {
       // Temporarily set turn to opponent's color to allow isValidMove to check
       const originalTurn = this.turn;
       this.turn = color === 'white' ? 'black' : 'white';
-      const canAttack = this.isValidMove(sq, kingSquare, true);
+      
+      // We need to check if the piece can move to the square.
+      // We need to bypass the pin check in isValidMove.
+      const canAttack = this.isValidMove(sq, square, true, true);
       this.turn = originalTurn;
-      if (canAttack) return true;
+      if (canAttack) {
+        return true;
+      }
     }
     return false;
+  }
+
+  isCheck(color) {
+    const kingSquare = Object.keys(this.board).find(
+      (sq) => this.board[sq] === (color === 'white' ? 'K' : 'k')
+    );
+    if (!kingSquare) {
+      return false;
+    }
+    return this.isAttacked(kingSquare, color);
   }
 
   isCheckmate(color) {
@@ -162,9 +219,6 @@ class Board {
       return piece && (color === 'white' ? piece === piece.toUpperCase() : piece === piece.toLowerCase());
     });
 
-    const originalTurn = this.turn;
-    this.turn = color;
-
     for (const from of pieces) {
       for (let file = 97; file <= 104; file++) {
         for (let rank = 1; rank <= 8; rank++) {
@@ -175,6 +229,12 @@ class Board {
             // Simulate move
             const originalBoard = { ...this.board };
             const pieceToMove = this.board[from];
+            
+            // Handle En Passant in simulation
+            if (pieceToMove.toUpperCase() === 'P' && from[0] !== to[0] && !this.board[to]) {
+              this.board[to[0] + from[1]] = null;
+            }
+            
             this.board[to] = pieceToMove;
             this.board[from] = null;
             
@@ -183,14 +243,12 @@ class Board {
             this.board = originalBoard;
             
             if (!stillInCheck) {
-              this.turn = originalTurn;
               return false;
             }
           }
         }
       }
     }
-    this.turn = originalTurn;
     
     // If we reached here, no move can escape check.
     return true;
@@ -202,7 +260,7 @@ class Board {
     board.board = {};
     const [piecePlacement, turn] = fen.split(' ');
     const rows = piecePlacement.split('/');
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < rows.length; i++) {
       let file = 0;
       for (const char of rows[i]) {
         if (isNaN(char)) {
@@ -253,6 +311,8 @@ class Board {
     }
     this.board[to] = piece;
     this.board[from] = null;
+    this.lastMove = { from, to };
+    this.turn = this.turn === 'white' ? 'black' : 'white';
   }
 }
 

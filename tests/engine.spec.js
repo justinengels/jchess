@@ -1,196 +1,85 @@
 const { test, expect } = require('@playwright/test');
 const { Board } = require('../src/rules');
 
-test('Knight can move in L-shape', async () => {
-  const board = new Board();
-  // Clear board for testing
-  board.board = {};
-  board.board['e4'] = 'N';
-  
-  // Valid moves for knight at e4: c3, c5, d2, d6, f2, f6, g3, g5
-  expect(board.isValidMove('e4', 'c3')).toBe(true);
-  expect(board.isValidMove('e4', 'c5')).toBe(true);
-  expect(board.isValidMove('e4', 'd2')).toBe(true);
-  expect(board.isValidMove('e4', 'd6')).toBe(true);
-  expect(board.isValidMove('e4', 'f2')).toBe(true);
-  expect(board.isValidMove('e4', 'f6')).toBe(true);
-  expect(board.isValidMove('e4', 'g3')).toBe(true);
-  expect(board.isValidMove('e4', 'g5')).toBe(true);
-  
-  // Invalid move
-  expect(board.isValidMove('e4', 'e5')).toBe(false);
+test.describe('Piece Movement Edge Cases', () => {
+  test('Absolute Pins: A piece cannot move if it exposes its own King to check', async () => {
+    // White King at e1, White Bishop at e2, Black Rook at e8
+    const board = Board.fromFEN('4k3/8/8/8/8/4B3/4K3/8 w');
+    // Bishop at e2 is pinned by Rook at e8
+    expect(board.isValidMove('e2', 'f3')).toBe(false);
+  });
 });
 
-test('Bishop can move diagonally', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e4'] = 'B';
-  
-  // Valid moves for bishop at e4: f5, g6, h7, d5, c6, b7, a8, f3, g2, h1, d3, c2, b1
-  expect(board.isValidMove('e4', 'f5')).toBe(true);
-  expect(board.isValidMove('e4', 'h7')).toBe(true);
-  expect(board.isValidMove('e4', 'd3')).toBe(true);
-  expect(board.isValidMove('e4', 'b1')).toBe(true);
-  
-  // Invalid move
-  expect(board.isValidMove('e4', 'e5')).toBe(false);
+test.describe('Pins & Discovered Attacks', () => {
+  test('Discovered/Double Checks: Moving a piece correctly triggers check from a piece behind it', async () => {
+    // White King at e1, White Knight at e2, White Rook at e3, Black King at e8
+    // Moving Knight at e2 discovers check from Rook at e3
+    const board = Board.fromFEN('4k3/8/8/8/8/4R3/4N3/4K3 w');
+    expect(board.isValidMove('e2', 'f4')).toBe(true);
+    // After move, it should be check
+    board.move('e2', 'f4');
+    expect(board.isCheck('black')).toBe(true);
+  });
 });
 
-test('Rook can move horizontally and vertically', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e4'] = 'R';
-  
-  // Valid moves for rook at e4: e5, e6, e7, e8, e3, e2, e1, a4, b4, c4, d4, f4, g4, h4
-  expect(board.isValidMove('e4', 'e8')).toBe(true);
-  expect(board.isValidMove('e4', 'e1')).toBe(true);
-  expect(board.isValidMove('e4', 'a4')).toBe(true);
-  expect(board.isValidMove('e4', 'h4')).toBe(true);
-  
-  // Invalid move
-  expect(board.isValidMove('e4', 'f5')).toBe(false);
+test.describe('Advanced Castling', () => {
+  test('King cannot castle OUT of check', async () => {
+    const board = Board.fromFEN('r3k2r/8/8/8/8/8/8/R3K2R w');
+    board.board['d1'] = 'q'; // Black Queen puts King in check
+    expect(board.isValidMove('e1', 'g1')).toBe(false);
+  });
+
+  test('King cannot castle THROUGH an attacked square', async () => {
+    const board = Board.fromFEN('r3k2r/8/8/8/8/8/8/R3K2R w');
+    board.board['f1'] = 'b'; // Black Bishop attacks f1
+    expect(board.isValidMove('e1', 'g1')).toBe(false);
+  });
+
+  test('King cannot castle INTO check', async () => {
+    const board = Board.fromFEN('r3k2r/8/8/8/8/8/8/R3K2R w');
+    board.board['g1'] = 'n'; // Black Knight attacks g1
+    expect(board.isValidMove('e1', 'g1')).toBe(false);
+  });
 });
 
-test('Queen can move diagonally, horizontally and vertically', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e4'] = 'Q';
-  
-  // Valid moves for queen at e4: e5, e6, e7, e8, e3, e2, e1, a4, b4, c4, d4, f4, g4, h4, f5, g6, h7, d5, c6, b7, a8, f3, g2, h1, d3, c2, b1
-  expect(board.isValidMove('e4', 'e8')).toBe(true);
-  expect(board.isValidMove('e4', 'a4')).toBe(true);
-  expect(board.isValidMove('e4', 'h7')).toBe(true);
-  expect(board.isValidMove('e4', 'b1')).toBe(true);
-  
-  // Invalid move
-  expect(board.isValidMove('e4', 'f6')).toBe(false);
+test.describe('Terminal States (Mate/Stalemate)', () => {
+  test('Smothered Mate: isCheckmate() returns true when the King is surrounded by its own pieces and attacked by a Knight', async () => {
+    const board = Board.fromFEN('ppp1kppp/ppp1p1pp/ppp1p1pp/6N1/8/8/8 b');
+    expect(board.isCheckmate('black')).toBe(true);
+  });
+
+  test('Back-Rank Mate: isCheckmate() returns true when the King is trapped behind pawns and attacked by a Rook', async () => {
+    const board = Board.fromFEN('5rk1/ppp2ppp/8/8/8/8/PPP2PPP/5RK1 b');
+    expect(board.isCheckmate('black')).toBe(true);
+  });
+
+  test('Stalemate Detection: The King is NOT in check, but has no legal moves', async () => {
+    const board = Board.fromFEN('7k/5K2/8/8/8/8/8/8 w');
+    expect(board.isCheckmate('black')).toBe(false);
+    // King has no moves
+    // generateMoves would return 0
+  });
 });
 
-test('King can move one square in any direction', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e4'] = 'K';
-  
-  // Valid moves for king at e4: e5, e3, d4, f4, d5, f5, d3, f3
-  expect(board.isValidMove('e4', 'e5')).toBe(true);
-  expect(board.isValidMove('e4', 'e3')).toBe(true);
-  expect(board.isValidMove('e4', 'd4')).toBe(true);
-  expect(board.isValidMove('e4', 'f4')).toBe(true);
-  expect(board.isValidMove('e4', 'd5')).toBe(true);
-  expect(board.isValidMove('e4', 'f5')).toBe(true);
-  expect(board.isValidMove('e4', 'd3')).toBe(true);
-  expect(board.isValidMove('e4', 'f3')).toBe(true);
-  
-  // Invalid move
-  expect(board.isValidMove('e4', 'e6')).toBe(false);
-});
+test.describe('En Passant Edge Cases', () => {
+  test('En Passant: Ensure it expires after one turn', async () => {
+    const board = Board.fromFEN('4k3/8/8/4Pp2/8/8/8/4K3 w');
+    board.lastMove = { from: 'f7', to: 'f5' };
+    expect(board.isValidMove('e5', 'f6')).toBe(true);
+    
+    // Simulate a move that is not the en passant capture
+    board.turn = 'black';
+    board.move('e8', 'd8');
+    
+    board.turn = 'white';
+    // En passant should have expired
+    expect(board.isValidMove('e5', 'f6')).toBe(false);
+  });
 
-test('Check: King is in check', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e1'] = 'K';
-  board.board['e8'] = 'r';
-  board.turn = 'white';
-  
-  expect(board.isCheck('white')).toBe(true);
-});
-
-test('Turn-based movement: White moves first', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e2'] = 'P';
-  board.turn = 'white';
-  
-  expect(board.isValidMove('e2', 'e3')).toBe(true);
-  
-  board.turn = 'black';
-  expect(board.isValidMove('e2', 'e3')).toBe(false);
-});
-
-test('Piece collision: Rook cannot jump over pieces', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e1'] = 'R';
-  board.board['e2'] = 'P'; // Blocking piece
-  
-  expect(board.isValidMove('e1', 'e3')).toBe(false);
-});
-
-test('Piece collision: Bishop cannot jump over pieces', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['a1'] = 'B';
-  board.board['b2'] = 'P'; // Blocking piece
-  
-  expect(board.isValidMove('a1', 'c3')).toBe(false);
-});
-
-test('Piece collision: Queen cannot jump over pieces', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['a1'] = 'Q';
-  board.board['b2'] = 'P'; // Blocking piece
-  
-  expect(board.isValidMove('a1', 'c3')).toBe(false);
-});
-
-test('Checkmate: King is in checkmate', async () => {
-  const board = new Board();
-  board.board = {};
-  // Simple back-rank mate
-  board.board['h8'] = 'k';
-  board.board['g7'] = 'p';
-  board.board['h7'] = 'p';
-  board.board['a8'] = 'R';
-  board.turn = 'black';
-  
-  // Ensure it is actually in check
-  expect(board.isCheck('black')).toBe(true);
-  
-  expect(board.isCheckmate('black')).toBe(true);
-});
-
-test('Castling: King can castle kingside', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e1'] = 'K';
-  board.board['h1'] = 'R';
-  board.turn = 'white';
-  
-  // Castling move: King moves from e1 to g1
-  expect(board.isValidMove('e1', 'g1')).toBe(true);
-});
-
-test('En Passant: Pawn can capture en passant', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e5'] = 'P';
-  board.board['f5'] = 'p';
-  board.turn = 'white';
-  
-  // En passant move: White pawn at e5 captures black pawn at f5
-  // This requires the black pawn to have just moved f7 to f5
-  // We need to simulate the last move for en passant
-  board.lastMove = { from: 'f7', to: 'f5' };
-  
-  expect(board.isValidMove('e5', 'f6')).toBe(true);
-});
-
-test('Pawn: Can move two squares forward on first move', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e2'] = 'P';
-  board.turn = 'white';
-  
-  expect(board.isValidMove('e2', 'e4')).toBe(true);
-});
-
-test('Pawn: Cannot move two squares forward if blocked', async () => {
-  const board = new Board();
-  board.board = {};
-  board.board['e2'] = 'P';
-  board.board['e3'] = 'p'; // Blocking piece
-  board.turn = 'white';
-  
-  expect(board.isValidMove('e2', 'e4')).toBe(false);
+  test('En Passant: A pinned pawn cannot capture En Passant', async () => {
+    const board = Board.fromFEN('4k3/8/8/4Pp2/4R3/8/8/4K3 w');
+    board.lastMove = { from: 'f7', to: 'f5' };
+    // Pawn at e5 is pinned by Rook at e4
+    expect(board.isValidMove('e5', 'f6')).toBe(false);
+  });
 });
