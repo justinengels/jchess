@@ -177,7 +177,6 @@ class Board {
     // We need to check if the king is attacked by ANY opponent piece
     // The current turn is the one that just moved, so we need to check the OTHER color
     const kingSafe = !this.isCheck(isWhite ? 'white' : 'black');
-    console.log(`Move ${from}->${to} (isWhite: ${isWhite}) - King safe: ${kingSafe} - Check: ${this.isCheck(isWhite ? 'white' : 'black')}`);
 
     // 6. Undo the simulation
     this.board[from] = piece;
@@ -326,6 +325,26 @@ class Board {
     this.lastMove = { from, to };
     this.turn = this.turn === 'white' ? 'black' : 'white';
   }
+
+  generateMoves() {
+    const moves = [];
+    const pieces = Object.keys(this.board).filter((sq) => {
+      const piece = this.board[sq];
+      return piece && (this.turn === 'white' ? piece === piece.toUpperCase() : piece === piece.toLowerCase());
+    });
+
+    for (const from of pieces) {
+      for (let file = 97; file <= 104; file++) {
+        for (let rank = 1; rank <= 8; rank++) {
+          const to = String.fromCharCode(file) + rank;
+          if (this.isValidMove(from, to)) {
+            moves.push({ from, to });
+          }
+        }
+      }
+    }
+    return moves;
+  }
 }
 
-export { Board };
+export default Board;

@@ -4,12 +4,17 @@ const pieces = {
     'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟'
 };
 
-import { Board } from './rules.js';
+import Board from './rules.js';
 const game = new Board();
 let isSearching = false;
 const engineWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
-engineWorker.onerror = (e) => console.error("Worker Error:", e.message, e.filename, e.lineno);
+engineWorker.onerror = (e) => {
+    console.error("Worker Error:", e.message, e.filename, e.lineno);
+    document.getElementById('status-text').textContent = 'Status: Engine error';
+    document.getElementById('heartbeat').style.backgroundColor = 'red';
+    isSearching = false;
+};
 
 engineWorker.onmessage = (e) => {
     const { move, nodeCount, error } = e.data;
@@ -97,5 +102,20 @@ function handleMove(from, to) {
         setTimeout(makeEngineMove, 100);
     }
 }
+
+document.getElementById('auto-play').addEventListener('click', () => {
+    if (game.turn === 'white') {
+        // Simple auto-play: make a random move for white
+        const moves = game.generateMoves();
+        if (moves.length > 0) {
+            const move = moves[Math.floor(Math.random() * moves.length)];
+            game.move(move.from, move.to);
+            renderBoard();
+            setTimeout(makeEngineMove, 100);
+        }
+    } else {
+        makeEngineMove();
+    }
+});
 
 renderBoard();
