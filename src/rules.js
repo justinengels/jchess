@@ -26,7 +26,7 @@ class Board {
     return this.board[square] || null;
   }
 
-  isValidMove(from, to) {
+  isValidMove(from, to, ignoreCheck = false) {
     const piece = this.board[from];
     if (!piece) return false;
 
@@ -34,6 +34,9 @@ class Board {
     if ((isWhite && this.turn !== 'white') || (!isWhite && this.turn !== 'black')) {
       return false;
     }
+
+    const targetPiece = this.board[to];
+    if (targetPiece && (isWhite ? targetPiece === targetPiece.toUpperCase() : targetPiece === targetPiece.toLowerCase())) return false;
 
     const fromFile = from.charCodeAt(0);
     const fromRank = parseInt(from[1]);
@@ -100,19 +103,14 @@ class Board {
       }
 
       if ((fileDiff <= 1 && rankDiff <= 1) && (fileDiff > 0 || rankDiff > 0)) {
-        // Check if target square is occupied by own piece
-        const targetPiece = this.board[to];
-        if (targetPiece && (isWhite ? targetPiece === targetPiece.toUpperCase() : targetPiece === targetPiece.toLowerCase())) {
-          return false;
+        if (!ignoreCheck) {
+          const originalBoard = { ...this.board };
+          this.board[to] = piece; this.board[from] = null;
+          const attacked = this.isCheck(isWhite ? 'white' : 'black');
+          this.board = originalBoard;
+          return !attacked;
         }
-
-        // Check if target square is attacked
-        const originalBoard = { ...this.board };
-        this.board[to] = piece;
-        this.board[from] = null;
-        const attacked = this.isCheck(isWhite ? 'white' : 'black');
-        this.board = originalBoard;
-        return !attacked;
+        return true;
       }
       return false;
     }
@@ -145,19 +143,10 @@ class Board {
     });
 
     for (const sq of opponentPieces) {
-      // Temporarily set turn to opponent's color to allow them to move
+      // Temporarily set turn to opponent's color to allow isValidMove to check
       const originalTurn = this.turn;
       this.turn = color === 'white' ? 'black' : 'white';
-      
-      // We need to bypass the turn check in isValidMove for simulation
-      // But isValidMove checks this.turn.
-      // Let's just check if the piece can move to the king's square
-      // without checking turn, or by setting turn correctly.
-      
-      // Actually, isValidMove checks this.turn.
-      // If we set this.turn to the opponent's color, isValidMove should work.
-      
-      const canAttack = this.isValidMove(sq, kingSquare);
+      const canAttack = this.isValidMove(sq, kingSquare, true);
       this.turn = originalTurn;
       if (canAttack) return true;
     }
@@ -182,15 +171,7 @@ class Board {
           const to = String.fromCharCode(file) + rank;
           
           // Check if move is valid for the piece
-          // We need to bypass the turn check in isValidMove for simulation
-          const originalTurnForMove = this.turn;
-          this.turn = color;
-          
-          // Temporarily set turn to color to allow isValidMove to check
-          const canMove = this.isValidMove(from, to);
-          this.turn = originalTurnForMove;
-
-          if (canMove) {
+          if (this.isValidMove(from, to, false)) {
             // Simulate move
             const originalBoard = { ...this.board };
             const pieceToMove = this.board[from];
@@ -214,6 +195,7 @@ class Board {
     // If we reached here, no move can escape check.
     return true;
   }
+
 
   static fromFEN(fen) {
     const board = new Board();
@@ -261,27 +243,14 @@ class Board {
 
   move(from, to) {
     const piece = this.board[from];
-    const target = this.board[to];
-
-    // Basic piece movement validation (simplified for now)
-    if (piece === 'P') {
-      if (target) {
-        const fromFile = from.charCodeAt(0);
-        const toFile = to.charCodeAt(0);
-        const fromRank = parseInt(from[1]);
-        const toRank = parseInt(to[1]);
-        if (Math.abs(fromFile - toFile) !== 1 || (toRank - fromRank) !== 1) {
-          throw new Error('Invalid move');
-        }
-      } else {
-        const diff = parseInt(to[1]) - parseInt(from[1]);
-        if (from[0] !== to[0] || (diff !== 1 && (diff !== 2 || from[1] !== '2'))) {
-          throw new Error('Invalid move');
-        }
-      }
+    if (!piece) return;
+    if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !this.board[to]) {
+      this.board[to[0] + from[1]] = null; // En Passant
     }
-    // Other pieces... (placeholder for full rules)
-
+    if (piece.toUpperCase() === 'K' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
+      if (to[0] === 'g') { this.board['f' + from[1]] = this.board['h' + from[1]]; this.board['h' + from[1]] = null; }
+      else if (to[0] === 'c') { this.board['d' + from[1]] = this.board['a' + from[1]]; this.board['a' + from[1]] = null; }
+    }
     this.board[to] = piece;
     this.board[from] = null;
   }

@@ -14,6 +14,7 @@ engineWorker.onerror = (e) => console.error("Worker Error:", e.message, e.filena
 engineWorker.onmessage = (e) => {
     const { move, nodeCount, error } = e.data;
     if (error) {
+        console.error("Worker Error:", error);
         document.getElementById('status-text').textContent = 'Status: Engine error';
         isSearching = false;
         return;
@@ -43,8 +44,10 @@ function makeEngineMove() {
     document.getElementById('status-text').textContent = 'Status: Computer is thinking...';
     document.getElementById('nodes-text').textContent = 'Nodes evaluated: 0';
 
-  const depth = parseInt(document.getElementById('depth').value) || 2;
-  const timeLimit = parseInt(document.getElementById('time-limit').value) || 1000;
+  const depthInput = document.getElementById('depth');
+  const depth = depthInput ? parseInt(depthInput.value) || 2 : 2;
+  const timeInput = document.getElementById('time-limit');
+  const timeLimit = timeInput ? parseInt(timeInput.value) || 1000 : 1000;
   
   engineWorker.postMessage({ fen: game.toFEN(), depth, timeLimit });
 }

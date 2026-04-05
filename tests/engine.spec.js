@@ -90,6 +90,7 @@ test('Check: King is in check', async () => {
   board.board = {};
   board.board['e1'] = 'K';
   board.board['e8'] = 'r';
+  board.turn = 'white';
   
   expect(board.isCheck('white')).toBe(true);
 });
@@ -142,6 +143,9 @@ test('Checkmate: King is in checkmate', async () => {
   board.board['h7'] = 'p';
   board.board['a8'] = 'R';
   board.turn = 'black';
+  
+  // Ensure it is actually in check
+  expect(board.isCheck('black')).toBe(true);
   
   expect(board.isCheckmate('black')).toBe(true);
 });
