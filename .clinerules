@@ -1,0 +1,34 @@
+# PROJECT: LOCAL JAVASCRIPT CHESS ENGINE (TDD)
+
+## TECH STACK
+- Frontend UI: Vanilla JavaScript (ES6+), HTML5, CSS3. Unicode pieces.
+- Engine Logic: Vanilla JavaScript.
+- Testing Framework: Playwright (`@playwright/test`).
+- STRICT RULE: Zero external chess libraries (no Stockfish, no chess.js). The engine must be built entirely from scratch.
+
+## PRODUCT REQUIREMENTS
+- A complete, custom-built chess engine that can play against a human.
+- Full standard chess rules implementation.
+- Engine Algorithm: Minimax with Alpha-Beta pruning.
+- Evaluation: Piece-square tables and standard piece values.
+
+## TDD EXECUTION LOOP (STRICT ENFORCEMENT)
+You must build this application using strict Test-Driven Development:
+1. Write the Playwright test for a specific feature/rule first.
+2. Run the test and confirm it fails.
+3. Write the minimum Vanilla JS code required to pass the test.
+4. Run the test and confirm it passes before moving to the next feature.
+
+## ARCHITECTURE & TEST STRUCTURE
+- `src/rules.js`: Core logic, move generation, validation.
+- `src/eval.js`: Evaluation function.
+- `src/search.js`: Minimax algorithm.
+- `src/ui.js` & `index.html` & `styles.css`: User interface.
+- `tests/engine.spec.js`: Playwright tests for engine logic.
+- `tests/ui.spec.js`: Playwright tests for DOM and drag-and-drop.
+
+## TOKEN OPTIMISATION RULES
+1. QUIET TESTING: When running Playwright, YOU MUST use a minimal reporter to save output tokens. Always run tests using: `npx playwright test --reporter=line`. Do not output full HTML reports to the terminal.
+2. BRIEF UPDATES ONLY: Provide a maximum one-sentence summary of your intent before executing a tool. 
+3. TARGETED READS: Never search or read the entire project directory.
+4. EFFICIENT EDITS: Use targeted search-and-replace tools. Do not rewrite entire files.

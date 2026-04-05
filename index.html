@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="UTF-8">
+    <title>Local JavaScript Chess Engine</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="status">
+        <p id="status-text">Status: Waiting for move...</p>
+        <p id="nodes-text">Nodes evaluated: 0</p>
+        <div id="heartbeat" style="width: 20px; height: 20px; background-color: green; border-radius: 50%;"></div>
+        <label>Search Depth: <input type="number" id="depth" value="2"></label>
+        <label>Time Limit (ms): <input type="number" id="time-limit" value="1000"></label>
+    </div>
+    <div id="board"></div>
+    <script type="module" src="src/rules.js"></script>
+    <script type="module" src="src/eval.js"></script>
+    <script type="module" src="src/search.js"></script>
+    <script type="module" src="src/ui.js"></script>
+</body>
+</html>
