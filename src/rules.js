@@ -26,12 +26,12 @@ class Board {
     return this.board[square] || null;
   }
 
-  isValidMove(from, to, ignoreCheck = false, ignorePins = false) {
+  isPseudoLegalMove(from, to) {
     const piece = this.board[from];
     if (!piece) return false;
 
     const isWhite = piece === piece.toUpperCase();
-    if (!ignorePins && ((isWhite && this.turn !== 'white') || (!isWhite && this.turn !== 'black'))) {
+    if ((isWhite && this.turn !== 'white') || (!isWhite && this.turn !== 'black')) {
       return false;
     }
 
@@ -130,36 +130,7 @@ class Board {
         }
       }
 
-      if ((fileDiff <= 1 && rankDiff <= 1) && (fileDiff > 0 || rankDiff > 0)) {
-        if (!ignoreCheck) {
-          const originalBoard = { ...this.board };
-          this.board[to] = piece; this.board[from] = null;
-          const attacked = this.isCheck(isWhite ? 'white' : 'black');
-          this.board = originalBoard;
-          return !attacked;
-        }
-        return true;
-      }
-      return false;
-    }
-
-    // Absolute Pin Check
-    if (!ignoreCheck && !ignorePins) {
-      const originalBoard = { ...this.board };
-      // Simulate move
-      this.board[to] = piece; this.board[from] = null;
-      // If en passant, remove the captured pawn
-      if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !this.board[to]) {
-        this.board[to[0] + from[1]] = null;
-      }
-      
-      // Check if king is attacked by the opponent
-      const attacked = this.isCheck(isWhite ? 'white' : 'black');
-      
-      this.board = originalBoard;
-      if (attacked) {
-        return false;
-      }
+      return (fileDiff <= 1 && rankDiff <= 1) && (fileDiff > 0 || rankDiff > 0);
     }
 
     if (piece.toUpperCase() === 'P') {
@@ -178,6 +149,46 @@ class Board {
     return false;
   }
 
+  isValidMove(from, to, ignoreCheck = false) {
+    // 1. Must be a valid piece movement
+    if (!this.isPseudoLegalMove(from, to)) return false;
+
+    // 2. If we are just checking attack paths, skip king safety simulation
+    if (ignoreCheck) return true;
+
+    const piece = this.board[from];
+    const isWhite = piece === piece.toUpperCase();
+    const originalTarget = this.board[to];
+
+    // 3. Handle En Passant capture simulation
+    let epCapturedSq = null;
+    let epCapturedPiece = null;
+    if (piece.toUpperCase() === 'P' && from[0] !== to[0] && !originalTarget) {
+      epCapturedSq = to[0] + from[1];
+      epCapturedPiece = this.board[epCapturedSq];
+      this.board[epCapturedSq] = null;
+    }
+
+    // 4. Simulate the move
+    this.board[to] = piece;
+    this.board[from] = null;
+
+    // 5. Verify King safety
+    // We need to check if the king is attacked by ANY opponent piece
+    // The current turn is the one that just moved, so we need to check the OTHER color
+    const kingSafe = !this.isCheck(isWhite ? 'white' : 'black');
+    console.log(`Move ${from}->${to} (isWhite: ${isWhite}) - King safe: ${kingSafe} - Check: ${this.isCheck(isWhite ? 'white' : 'black')}`);
+
+    // 6. Undo the simulation
+    this.board[from] = piece;
+    this.board[to] = originalTarget;
+    if (epCapturedSq) {
+      this.board[epCapturedSq] = epCapturedPiece;
+    }
+
+    return kingSafe;
+  }
+
   isAttacked(square, color) {
     const opponentPieces = Object.keys(this.board).filter((sq) => {
       const piece = this.board[sq];
@@ -185,13 +196,15 @@ class Board {
     });
 
     for (const sq of opponentPieces) {
-      // Temporarily set turn to opponent's color to allow isValidMove to check
+      // Temporarily set turn to opponent's color to allow isPseudoLegalMove to check
       const originalTurn = this.turn;
       this.turn = color === 'white' ? 'black' : 'white';
       
       // We need to check if the piece can move to the square.
-      // We need to bypass the pin check in isValidMove.
-      const canAttack = this.isValidMove(sq, square, true, true);
+      // For isAttacked, we ignore the fact that the piece might be pinned,
+      // because we are checking if the square is under attack by the opponent.
+      // However, isPseudoLegalMove checks turn, so we must ensure turn is set correctly.
+      const canAttack = this.isPseudoLegalMove(sq, square);
       this.turn = originalTurn;
       if (canAttack) {
         return true;
@@ -205,7 +218,7 @@ class Board {
       (sq) => this.board[sq] === (color === 'white' ? 'K' : 'k')
     );
     if (!kingSquare) {
-      return false;
+      return true; // King missing is checkmate/invalid state
     }
     return this.isAttacked(kingSquare, color);
   }
@@ -253,7 +266,6 @@ class Board {
     // If we reached here, no move can escape check.
     return true;
   }
-
 
   static fromFEN(fen) {
     const board = new Board();
