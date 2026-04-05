@@ -22,7 +22,6 @@ engineWorker.onmessage = (e) => {
     if (move) {
         document.getElementById('nodes-text').textContent = `Nodes evaluated: ${nodeCount}`;
         game.move(move.from, move.to);
-        game.turn = game.turn === 'white' ? 'black' : 'white';
         renderBoard();
         document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
         
@@ -89,14 +88,13 @@ function renderBoard() {
 function handleMove(from, to) {
     if (game.isValidMove(from, to)) {
         game.move(from, to);
-        game.turn = game.turn === 'white' ? 'black' : 'white';
         renderBoard();
         
         // Lock board
         const squares = document.querySelectorAll('.square');
         squares.forEach(sq => sq.draggable = false);
         
-        makeEngineMove();
+        setTimeout(makeEngineMove, 100);
     }
 }
 

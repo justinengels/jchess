@@ -44,7 +44,10 @@ class Search {
       return piece && (color === 'white' ? piece === piece.toUpperCase() : piece === piece.toLowerCase());
     });
 
+    console.log('generateMoves: color', color, 'pieces', pieces.length, 'pieces list', pieces);
+
     for (const from of pieces) {
+      console.log('generateMoves: checking piece', board.board[from], 'at', from);
       for (let file = 97; file <= 104; file++) {
         for (let rank = 1; rank <= 8; rank++) {
           const to = String.fromCharCode(file) + rank;
@@ -60,7 +63,7 @@ class Search {
   static makeMove(board, move) {
     const newBoard = new Board();
     newBoard.board = { ...board.board };
-    newBoard.turn = board.turn === 'white' ? 'black' : 'white';
+    newBoard.turn = board.turn;
     newBoard.lastMove = move;
     newBoard.move(move.from, move.to);
     return newBoard;
@@ -73,7 +76,7 @@ class Search {
     let totalNodes = 0;
     let depth = 1;
 
-    console.log('getBestMove: turn', board.turn, 'maxDepth', maxDepth);
+    console.log('getBestMove: turn', board.turn, 'maxDepth', maxDepth, 'board', board.toFEN());
 
     while (depth <= maxDepth && performance.now() - startTime < timeLimit) {
       const stats = { nodesEvaluated: 0 };
