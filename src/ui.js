@@ -4,24 +4,35 @@ const pieces = {
     'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟'
 };
 
+import { Board } from './rules.js';
 const game = new Board();
 let isSearching = false;
 const engineWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 
+engineWorker.onerror = (e) => console.error("Worker Error:", e.message, e.filename, e.lineno);
+
 engineWorker.onmessage = (e) => {
-    const { move, nodesEvaluated } = e.data;
+    const { move, nodeCount, error } = e.data;
+    if (error) {
+        document.getElementById('status-text').textContent = 'Status: Engine error';
+        isSearching = false;
+        return;
+    }
     if (move) {
+        document.getElementById('nodes-text').textContent = `Nodes evaluated: ${nodeCount}`;
         game.move(move.from, move.to);
         game.turn = game.turn === 'white' ? 'black' : 'white';
         renderBoard();
-        document.getElementById('status-text').textContent = 'Status: White to move';
-        document.getElementById('nodes-text').textContent = `Nodes evaluated: ${nodesEvaluated}`;
+        document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
+        
+        // Unlock board
+        const squares = document.querySelectorAll('.square');
+        squares.forEach(sq => sq.draggable = true);
     } else {
-        console.error('Engine failed to find a move');
         document.getElementById('status-text').textContent = 'Status: Engine error';
     }
-    isSearching = false;
     document.getElementById('heartbeat').style.backgroundColor = 'green';
+    isSearching = false;
 };
 
 function makeEngineMove() {
@@ -32,14 +43,10 @@ function makeEngineMove() {
     document.getElementById('status-text').textContent = 'Status: Computer is thinking...';
     document.getElementById('nodes-text').textContent = 'Nodes evaluated: 0';
 
-    const depth = parseInt(document.getElementById('depth').value);
-    const timeLimit = parseInt(document.getElementById('time-limit').value);
-    
-    engineWorker.postMessage({
-        boardData: { board: game.board, turn: game.turn },
-        maxDepth: depth,
-        timeLimit: timeLimit
-    });
+  const depth = parseInt(document.getElementById('depth').value) || 2;
+  const timeLimit = parseInt(document.getElementById('time-limit').value) || 1000;
+  
+  engineWorker.postMessage({ fen: game.toFEN(), depth, timeLimit });
 }
 
 function renderBoard() {

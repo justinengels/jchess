@@ -215,6 +215,50 @@ class Board {
     return true;
   }
 
+  static fromFEN(fen) {
+    const board = new Board();
+    board.board = {};
+    const [piecePlacement, turn] = fen.split(' ');
+    const rows = piecePlacement.split('/');
+    for (let i = 0; i < 8; i++) {
+      let file = 0;
+      for (const char of rows[i]) {
+        if (isNaN(char)) {
+          board.board[String.fromCharCode(97 + file) + (8 - i)] = char;
+          file++;
+        } else {
+          file += parseInt(char);
+        }
+      }
+    }
+    board.turn = turn === 'w' ? 'white' : 'black';
+    return board;
+  }
+
+  toFEN() {
+    let fen = '';
+    for (let rank = 8; rank >= 1; rank--) {
+      let empty = 0;
+      for (let file = 0; file < 8; file++) {
+        const square = String.fromCharCode(97 + file) + rank;
+        const piece = this.board[square];
+        if (piece) {
+          if (empty > 0) {
+            fen += empty;
+            empty = 0;
+          }
+          fen += piece;
+        } else {
+          empty++;
+        }
+      }
+      if (empty > 0) fen += empty;
+      if (rank > 1) fen += '/';
+    }
+    fen += ` ${this.turn === 'white' ? 'w' : 'b'}`;
+    return fen;
+  }
+
   move(from, to) {
     const piece = this.board[from];
     const target = this.board[to];
@@ -243,8 +287,4 @@ class Board {
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.Board = Board;
-} else {
-  module.exports = { Board };
-}
+export { Board };

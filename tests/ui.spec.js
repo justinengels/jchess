@@ -12,6 +12,13 @@ test('Engine responds to human move', async ({ page }) => {
 
   // Wait for the move to complete and the Heartbeat to turn Green.
   await expect(page.locator('#heartbeat')).toHaveCSS('background-color', 'rgb(0, 128, 0)', { timeout: 15000 });
-  // The status text might not update if the engine doesn't find a move or if the turn logic is different.
-  // Let's just check that the heartbeat is green, which indicates the engine finished.
+  
+  // Verify nodes evaluated is greater than 0
+  await expect(page.locator('#nodes-text')).not.toHaveText('Nodes evaluated: 0', { timeout: 20000 });
+  const nodesText = await page.locator('#nodes-text').textContent();
+  const nodesCount = parseInt(nodesText.replace('Nodes evaluated: ', ''));
+  expect(nodesCount).toBeGreaterThan(0);
+  
+  // Verify it is now Black's turn
+  await expect(page.locator('#status-text')).toHaveText('Status: Black to move');
 });

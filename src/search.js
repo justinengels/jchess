@@ -1,11 +1,15 @@
+import { Board } from './rules.js';
+import { Evaluator } from './eval.js';
+
 class Search {
   static minimax(board, depth, alpha, beta, isMaximizingPlayer, stats, startTime, timeLimit) {
     if (performance.now() - startTime > timeLimit) throw new Error('TimeoutException');
-    if (stats.nodesEvaluated > 500000) return Evaluator.evaluate(board);
+    
     if (depth === 0) {
       stats.nodesEvaluated++;
       return Evaluator.evaluate(board);
     }
+    stats.nodesEvaluated++;
 
     const moves = this.generateMoves(board, isMaximizingPlayer);
 
@@ -57,6 +61,7 @@ class Search {
     const newBoard = new Board();
     newBoard.board = { ...board.board };
     newBoard.turn = board.turn === 'white' ? 'black' : 'white';
+    newBoard.lastMove = move;
     newBoard.move(move.from, move.to);
     return newBoard;
   }
@@ -68,17 +73,19 @@ class Search {
     let totalNodes = 0;
     let depth = 1;
 
+    console.log('getBestMove: turn', board.turn, 'maxDepth', maxDepth);
+
     while (depth <= maxDepth && performance.now() - startTime < timeLimit) {
       const stats = { nodesEvaluated: 0 };
       const currentBestMove = this.iterativeDeepening(board, depth, isMaximizingPlayer, startTime, timeLimit, stats);
+      totalNodes += stats.nodesEvaluated;
+      console.log('getBestMove: depth', depth, 'bestMove', currentBestMove, 'nodes', stats.nodesEvaluated);
       if (currentBestMove) {
         bestMove = currentBestMove;
-        totalNodes += stats.nodesEvaluated;
-      } else {
-        break;
       }
       depth++;
     }
+    console.log('getBestMove: returning', { move: bestMove, nodesEvaluated: totalNodes });
     return { move: bestMove, nodesEvaluated: totalNodes };
   }
 
@@ -113,8 +120,4 @@ class Search {
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.Search = Search;
-} else {
-  module.exports = { Search };
-}
+export { Search };

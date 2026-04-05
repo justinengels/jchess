@@ -12,8 +12,4 @@ class Evaluator {
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.Evaluator = Evaluator;
-} else {
-  module.exports = { Evaluator };
-}
+export { Evaluator };
