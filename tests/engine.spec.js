@@ -3,10 +3,9 @@ const { Board } = require('../src/rules');
 
 test.describe('Piece Movement Edge Cases', () => {
   test('Absolute Pins: A piece cannot move if it exposes its own King to check', async () => {
-    // White King at e1, White Bishop at e2, Black Rook at e8
-    const board = Board.fromFEN('4k3/8/8/8/8/4B3/4K3/8 w');
-    // Bishop at e2 is pinned by Rook at e8
-    expect(board.isValidMove('e2', 'f3')).toBe(false);
+    const board = Board.fromFEN('4r3/8/8/8/4N3/8/8/4K3 w');
+    // Knight at e4 is pinned to King at e1 by Rook at e8
+    expect(board.isValidMove('e4', 'd6')).toBe(false);
   });
 });
 
@@ -44,12 +43,12 @@ test.describe('Advanced Castling', () => {
 
 test.describe('Terminal States (Mate/Stalemate)', () => {
   test('Smothered Mate: isCheckmate() returns true when the King is surrounded by its own pieces and attacked by a Knight', async () => {
-    const board = Board.fromFEN('ppp1kppp/ppp1p1pp/ppp1p1pp/6N1/8/8/8 b');
+    const board = Board.fromFEN('6rk/5Npp/8/8/8/8/8/8 b');
     expect(board.isCheckmate('black')).toBe(true);
   });
 
   test('Back-Rank Mate: isCheckmate() returns true when the King is trapped behind pawns and attacked by a Rook', async () => {
-    const board = Board.fromFEN('5rk1/ppp2ppp/8/8/8/8/PPP2PPP/5RK1 b');
+    const board = Board.fromFEN('4R1k1/5ppp/8/8/8/8/8/8 b');
     expect(board.isCheckmate('black')).toBe(true);
   });
 
@@ -77,9 +76,9 @@ test.describe('En Passant Edge Cases', () => {
   });
 
   test('En Passant: A pinned pawn cannot capture En Passant', async () => {
-    const board = Board.fromFEN('4k3/8/8/4Pp2/4R3/8/8/4K3 w');
+    const board = Board.fromFEN('4r3/8/8/4pP2/8/8/8/4K3 w');
     board.lastMove = { from: 'f7', to: 'f5' };
-    // Pawn at e5 is pinned by Rook at e4
+    // Capturing f6 removes the e5 pawn, exposing the e1 King to the e8 Rook
     expect(board.isValidMove('e5', 'f6')).toBe(false);
   });
 });
