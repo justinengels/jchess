@@ -5,12 +5,8 @@ class Search {
   static minimax(board, depth, alpha, beta, isMaximizingPlayer, stats, startTime, timeLimit, currentDepth = 0) {
     if (this.isAborted) return 0;
     stats.nodesEvaluated++;
-    if (stats.nodesEvaluated % 1000 === 0) {
-      console.log(`Depth: ${currentDepth}, Nodes: ${stats.nodesEvaluated}, Time: ${Date.now() - startTime}ms`);
-    }
-    if (Date.now() - startTime >= timeLimit) {
+    if (stats.nodesEvaluated % 20 === 0 && Date.now() - startTime >= timeLimit) {
         this.isAborted = true;
-        console.log("Search aborted due to time limit");
     }
     if (this.isAborted) return 0;
     
@@ -59,6 +55,7 @@ class Search {
     for (const from of pieces) {
       for (let file = 97; file <= 104; file++) {
         for (let rank = 1; rank <= 8; rank++) {
+          if (this.isAborted) return moves;
           const to = String.fromCharCode(file) + rank;
           if (board.isValidMove(from, to)) {
             moves.push({ from, to });
@@ -82,22 +79,25 @@ class Search {
     const startTime = Date.now();
     this.isAborted = false;
     let bestMove = null;
-    let totalNodes = 0;
+    let completedDepth = 0;
+    this.nodesEvaluated = 0;
 
     for (let d = 1; d <= maxDepth; d++) {
       const stats = { nodesEvaluated: 0 };
       const currentBestMove = this.iterativeDeepening(board, d, isMaximizingPlayer, startTime, timeLimit, stats);
-      totalNodes += stats.nodesEvaluated;
+      this.nodesEvaluated += stats.nodesEvaluated;
       
       if (this.isAborted) break;
       
       if (currentBestMove) {
         bestMove = currentBestMove;
+        completedDepth = d;
       } else {
         break;
       }
     }
-    return { move: bestMove, nodesEvaluated: totalNodes };
+    console.log(`[Search] Depth: ${completedDepth}/${maxDepth}, Nodes: ${this.nodesEvaluated}, Aborted: ${this.isAborted}, Time: ${Date.now() - startTime}ms`);
+    return { move: bestMove, nodeCount: this.nodesEvaluated };
   }
 
   static iterativeDeepening(board, depth, isMaximizingPlayer, startTime, timeLimit, stats) {
@@ -129,4 +129,4 @@ class Search {
   }
 }
 
-export default Search;
+export { Search };

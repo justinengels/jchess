@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test('Engine responds to human move', async ({ page }) => {
   page.on('console', msg => console.log(msg.text()));

@@ -8,11 +8,11 @@ self.onmessage = (e) => {
     const board = Board.fromFEN(fen);
     console.log("Starting search for FEN:", fen);
     const result = Search.getBestMove(board, depth, timeLimit);
-    console.log("Search finished. Best move:", result.move, "Nodes:", result.nodesEvaluated);
+    console.log("Search finished. Best move:", result.move, "Nodes:", result.nodeCount);
     
     self.postMessage({ 
       move: result.move, 
-      nodeCount: result.nodesEvaluated 
+      nodeCount: result.nodeCount 
     });
   } catch (err) {
     self.postMessage({ error: err.message, stack: err.stack });
