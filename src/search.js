@@ -1,4 +1,3 @@
-// src/search.js
 import Evaluator from './eval.js';
 
 export class Search {
@@ -8,6 +7,7 @@ export class Search {
         this.timeLimit = 1000;
         this.maxNodes = Infinity;
         this.isAborted = false;
+        this.opsCount = 0;
     }
 
     getBestMove(board, depth = 3, timeLimit = 1000, maxNodes = Infinity) {
@@ -16,81 +16,94 @@ export class Search {
         this.timeLimit = timeLimit;
         this.maxNodes = maxNodes;
         this.isAborted = false;
+        this.opsCount = 0;
 
         let bestMove = null;
         let completedDepth = 0;
 
-        // Iterative Deepening
         for (let d = 1; d <= depth; d++) {
-            // CRITICAL: We check the result of minimax. If it's null, we stop entirely.
             const result = this.minimax(board, d, -Infinity, Infinity, board.turn === 'white');
-            
-            if (result === null || this.isAborted) break;
-
+            if (this.isAborted) break;
             if (result.move) {
                 bestMove = result.move;
                 completedDepth = d;
             }
         }
 
-        // Fallback: If we aborted before even depth 1 finished, get any legal move
-        if (!bestMove) {
-            const moves = board.generateMoves();
-            bestMove = moves[0] || null;
-        }
-
         const timeTaken = Date.now() - this.startTime;
-        console.log(`[ENGINE] Depth Reached: ${completedDepth} | Nodes: ${this.nodesEvaluated} | Time: ${timeTaken}ms | Aborted: ${this.isAborted}`);
+        console.log(`[ENGINE] Turn: ${board.turn} | Depth Reached: ${completedDepth}/${depth} | Nodes: ${this.nodesEvaluated}/${this.maxNodes} | Time: ${timeTaken}ms/${this.timeLimit}ms | Aborted: ${this.isAborted} | Best Move:`, bestMove);
         
-        return { move: bestMove, nodeCount: this.nodesEvaluated, depth: completedDepth };
+        return { move: bestMove, nodeCount: this.nodesEvaluated };
     }
 
     checkAbort() {
         if (this.isAborted) return true;
+        if (this.nodesEvaluated >= this.maxNodes) {
+            this.isAborted = true;
+            return true;
+        }
         
-        // Performance optimization: checking Date.now() is expensive. 
-        // We check it every 128 nodes (bitwise AND is faster than modulo).
-        if ((this.nodesEvaluated & 127) === 0) {
-            if (this.nodesEvaluated >= this.maxNodes || (Date.now() - this.startTime >= this.timeLimit)) {
-                this.isAborted = true;
+        this.opsCount++;
+        if (this.opsCount % 100 === 0 && Date.now() - this.startTime >= this.timeLimit) {
+            this.isAborted = true;
+            return true;
+        }
+        return false;
+    }
+
+    generateMoves(board, isWhite) {
+        const moves = [];
+        const files = 'abcdefgh';
+        for (let r = 1; r <= 8; r++) {
+            for (const f of files) {
+                const from = f + r;
+                const p = board.board[from];
+                if (p && (isWhite ? p === p.toUpperCase() : p === p.toLowerCase())) {
+                    for (let r2 = 1; r2 <= 8; r2++) {
+                        for (const f2 of files) {
+                            if (this.checkAbort()) return moves;
+                            const to = f2 + r2;
+                            if (board.isValidMove(from, to)) {
+                                moves.push({ from, to });
+                            }
+                        }
+                    }
+                }
             }
         }
-        return this.isAborted;
+        return moves;
     }
 
     minimax(board, depth, alpha, beta, isMaximizingPlayer) {
         this.nodesEvaluated++;
-        
-        // 1. Check abort at the start of every node
-        if (this.checkAbort()) return null; 
+        if (this.checkAbort()) return { score: 0 };
 
         if (depth === 0) {
             return { score: Evaluator.evaluate(board) };
         }
 
-        const moves = board.generateMoves();
-        
+        const moves = this.generateMoves(board, isMaximizingPlayer);
+        if (this.isAborted) return { score: 0 };
+
         if (moves.length === 0) {
             if (board.isCheck(isMaximizingPlayer ? 'white' : 'black')) {
                 return { score: isMaximizingPlayer ? -10000 : 10000 };
             }
-            return { score: 0 }; 
+            return { score: 0 }; // Stalemate
         }
 
         let bestMove = moves[0];
         let bestScore = isMaximizingPlayer ? -Infinity : Infinity;
 
         for (const move of moves) {
-            // 2. Check abort before diving into a new branch
-            if (this.isAborted) return null;
+            if (this.checkAbort()) break;
 
-            // Use make/unmake instead of cloning to save massive amounts of time
-            const { captured, prevLastMove } = board.move(move.from, move.to);
-            const result = this.minimax(board, depth - 1, alpha, beta, !isMaximizingPlayer);
-            board.unmakeMove(move.from, move.to, captured, prevLastMove);
+            const clonedBoard = Object.assign(Object.create(Object.getPrototypeOf(board)), board);
+            clonedBoard.board = { ...board.board };
+            clonedBoard.move(move.from, move.to);
 
-            // 3. PROPAGATION: If the child returned null, this level must also return null immediately
-            if (result === null) return null;
+            const result = this.minimax(clonedBoard, depth - 1, alpha, beta, !isMaximizingPlayer);
+            if (this.isAborted) break;
 
             if (isMaximizingPlayer) {
                 if (result.score > bestScore) {
@@ -106,7 +119,7 @@ export class Search {
                 beta = Math.min(beta, bestScore);
             }
 
-            if (beta <= alpha) break; 
+            if (beta <= alpha) break; // Alpha-beta pruning
         }
 
         return { score: bestScore, move: bestMove };
