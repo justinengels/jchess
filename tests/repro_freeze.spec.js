@@ -1,21 +1,25 @@
 import { test, expect } from '@playwright/test';
-import Board from '../src/rules.js';
-import { Search } from '../src/search.js';
+import { execSync } from 'child_process';
 
-test('Engine should not freeze on problematic FEN', async () => {
-  const fen = 'r1bk1bnN/pp1pp1pp/2p5/3n4/3P1B2/P1q1P3/2P1KPPP/1R1Q1B1R b';
-  const board = Board.fromFEN(fen);
+test('Engine should safely abort on problematic FEN without freezing', () => {
+  const script = `
+    import Board from './src/rules.js';
+    import { Search } from './src/search.js';
+    const board = Board.fromFEN('r1bk1bnN/pp1pp1pp/2p5/3n4/3P1B2/P1q1P3/2P1KPPP/1R1Q1B1R b');
+    const search = new Search();
+    const start = Date.now();
+    const result = search.getBestMove(board, 10, 1000);
+    console.log(JSON.stringify({ move: !!result.move, elapsed: Date.now() - start }));
+  `;
   
-  // Set a timeout for the search to detect a freeze
-  const searchPromise = new Promise((resolve) => {
-    const result = Search.getBestMove(board, 3, 5000); // 5 seconds limit
-    resolve(result);
+  // The OS will forcefully kill the child process if it exceeds 2000ms
+  const output = execSync('node --input-type=module', { 
+    input: script,
+    timeout: 2000,
+    killSignal: 'SIGKILL'
   });
-
-  const result = await Promise.race([
-    searchPromise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Search timed out')), 6000))
-  ]);
-
-  expect(result.move).toBeDefined();
+  
+  const parsed = JSON.parse(output.toString());
+  expect(parsed.move).toBe(true);
+  expect(parsed.elapsed).toBeLessThan(1200);
 });

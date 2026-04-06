@@ -26,17 +26,27 @@ engineWorker.onmessage = (e) => {
         isSearching = false;
         return;
     }
+    if (e.data.type === 'progress') {
+        document.getElementById('nodes-text').textContent = `Nodes evaluated: ${e.data.nodeCount}`;
+        return;
+    }
+
     if (move) {
-        document.getElementById('nodes-text').textContent = `Nodes evaluated: ${nodeCount}`;
+        document.getElementById('nodes-text').textContent = `Nodes evaluated: ${nodeCount} (Depth: ${e.data.depth})`;
         game.move(move.from, move.to);
         renderBoard();
-        document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
-        
-        // Unlock board
-        const squares = document.querySelectorAll('.square');
-        squares.forEach(sq => sq.draggable = true);
+    } else {
+        console.error("Engine failed to find a move");
+        document.getElementById('status-text').textContent = 'Status: Engine failed to find a move';
     }
-    document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
+
+    // Always unlock board and update status if move was made
+    const squares = document.querySelectorAll('.square');
+    squares.forEach(sq => sq.draggable = true);
+    
+    if (move) {
+        document.getElementById('status-text').textContent = `Status: ${game.turn.charAt(0).toUpperCase() + game.turn.slice(1)} to move`;
+    }
     document.getElementById('heartbeat').style.backgroundColor = 'green';
     isSearching = false;
 };

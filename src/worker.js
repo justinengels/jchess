@@ -13,8 +13,10 @@ self.onmessage = (e) => {
     console.log("Search finished. Best move:", result.move, "Nodes:", result.nodeCount);
     
     self.postMessage({ 
+      type: 'result',
       move: result.move, 
-      nodeCount: result.nodeCount 
+      nodeCount: result.nodeCount,
+      depth: result.depth
     });
   } catch (err) {
     self.postMessage({ error: err.message, stack: err.stack });

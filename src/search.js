@@ -3,28 +3,40 @@ import Evaluator from './eval.js';
 export class Search {
     constructor() {
         this.nodesEvaluated = 0;
+        this.lastReportedNode = 0;
         this.startTime = 0;
         this.timeLimit = 1000;
         this.maxNodes = Infinity;
         this.isAborted = false;
+        this.opsCount = 0;
     }
 
     getBestMove(board, depth = 3, timeLimit = 1000, maxNodes = Infinity) {
         this.nodesEvaluated = 0;
+        this.lastReportedNode = 0;
         this.startTime = Date.now();
         this.timeLimit = timeLimit;
         this.maxNodes = maxNodes;
         this.isAborted = false;
+        this.opsCount = 0;
 
         let bestMove = null;
         let completedDepth = 0;
 
         for (let d = 1; d <= depth; d++) {
             const result = this.minimax(board, d, -Infinity, Infinity, board.turn === 'white');
-            if (this.isAborted) break;
             if (result.move) {
                 bestMove = result.move;
                 completedDepth = d;
+            }
+            if (this.isAborted) break;
+        }
+
+        // Fallback: if no move was found due to early abort, try to return any valid move
+        if (!bestMove) {
+            const moves = this.generateMoves(board, board.turn === 'white');
+            if (moves.length > 0) {
+                bestMove = moves[0];
             }
         }
 
@@ -40,7 +52,10 @@ export class Search {
             this.isAborted = true;
             return true;
         }
-        if (this.nodesEvaluated % 100 === 0 && Date.now() - this.startTime >= this.timeLimit) {
+
+        // Use an independent operation counter to guarantee time checks inside heavy loops
+        this.opsCount = (this.opsCount || 0) + 1;
+        if (this.opsCount % 100 === 0 && Date.now() - this.startTime >= this.timeLimit) {
             this.isAborted = true;
             return true;
         }

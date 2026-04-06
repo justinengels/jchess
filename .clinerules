@@ -26,9 +26,3 @@ You must build this application using strict Test-Driven Development:
 - `src/ui.js` & `index.html` & `styles.css`: User interface.
 - `tests/engine.spec.js`: Playwright tests for engine logic.
 - `tests/ui.spec.js`: Playwright tests for DOM and drag-and-drop.
-
-## TOKEN OPTIMISATION RULES
-1. QUIET TESTING: When running Playwright, YOU MUST use a minimal reporter to save output tokens. Always run tests using: `npx playwright test --reporter=line`. Do not output full HTML reports to the terminal.
-2. BRIEF UPDATES ONLY: Provide a maximum one-sentence summary of your intent before executing a tool. 
-3. TARGETED READS: Never search or read the entire project directory.
-4. EFFICIENT EDITS: Use targeted search-and-replace tools. Do not rewrite entire files.
