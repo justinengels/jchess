@@ -12,4 +12,4 @@ class Evaluator {
   }
 }
 
-export { Evaluator };
+export default Evaluator;
