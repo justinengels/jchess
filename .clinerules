@@ -1,5 +1,10 @@
 # PROJECT: LOCAL JAVASCRIPT CHESS ENGINE (TDD)
 
+## AGENT EXECUTION GUARDRAILS (ANTI-LOOPING)
+1. **Prefer `write_to_file`:** For any structural logic changes, complex refactors, or fixes spanning more than 5 lines, strictly use `write_to_file` to overwrite the entire file. DO NOT use `replace_in_file`, as it risks breaking the AST and triggering infinite syntax-error loops.
+2. **Strict Tool Sequencing:** Plan execution sequentially. NEVER read a file, attempt a patch, and run a test in an unverified loop. If a test times out or fails 3 times in a row, STOP and report the error to the user; do not blindly guess or repeat the same execution path.
+3. **Sandbox Heavy Compute:** Any test that risks infinite recursion or heavy CPU load must be executed in an OS-level child process with a strict timeout (e.g., `execSync` with `killSignal: 'SIGKILL'`) to prevent blocking the Node event loop and creating zombie processes.
+
 ## TECH STACK
 - Frontend UI: Vanilla JavaScript (ES6+), HTML5, CSS3. Unicode pieces.
 - Engine Logic: Vanilla JavaScript.
